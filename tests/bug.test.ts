@@ -4,12 +4,12 @@ import {prisma, PrismaTransaction} from "../src/db/prisma"
 
 export const objectIDs = new WeakMap<object, string>()
 export let currentID = 0
-export const synchronisationTable: string[] = []
 
-export async function sleepUntilInSynchronisationTable(stringExpected: string) {
+export async function sleepUntilInSynchronisationTable(synchronisationTable: string[], stringExpected: string) {
     console.log(`Waiting for synchronisation point ${stringExpected}`)
     while (!synchronisationTable.includes(stringExpected)) {
-        await new Promise((resolve) => setTimeout(resolve, 300))
+        console.log(synchronisationTable)
+        await new Promise((resolve) => setTimeout(resolve, 1000))
     }
     console.log(`Synchronisation point ${stringExpected} reached`)
 }
@@ -26,6 +26,7 @@ export async function addDragAndDropResult(
 	tx: PrismaTransaction,
     name: string,
     timestamp: Date,
+    synchronisationTable: string[],
 ) {
     console.log(`Creating drag and drop result in ${name} transaction`)
 	const dragAndDropResult = await tx.dragAndDropResults.create({
@@ -57,7 +58,7 @@ export async function addDragAndDropResult(
 
     // Waiting for second transaction to end inserting variable values
     if (name === "first") {
-        await sleepUntilInSynchronisationTable("secondVariableValuesInserted")
+        await sleepUntilInSynchronisationTable(synchronisationTable, "secondVariableValuesInserted")
     } else if (name === "second") {
         console.log(`Inserting secondVariableValuesInserted for synchronization`)
         synchronisationTable.push("secondVariableValuesInserted")
@@ -102,22 +103,26 @@ describe("Tests", () => {
 		console.log("Prisma client object id: ", getUniqueIdForObject(prisma))
 
         const timestamp = new Date()
+        const synchronisationTable: string[] = []
+
         await Promise.all([
-            await prisma.$transaction(async (tx: PrismaTransaction) => {
+            prisma.$transaction(async (tx: PrismaTransaction) => {
 				console.log("Prisma transaction 1 object id: ", getUniqueIdForObject(tx))
                 return await addDragAndDropResult(
                     tx,
                     "first",
                     timestamp,
+                    synchronisationTable,
                 )
             }).then(() => console.log("First transaction done"))
             .catch((e) => console.error("First transaction error: ", e)),
-			await prisma.$transaction(async (tx2: PrismaTransaction) => {
+			prisma.$transaction(async (tx2: PrismaTransaction) => {
 				console.log("Prisma transaction 2 object id: ", getUniqueIdForObject(tx2))
                 return await addDragAndDropResult(
                     tx2,
                     "second",
                     timestamp,
+                    synchronisationTable,
                 )
             }).then(() => console.log("Second transaction done"))
             .catch((e) => console.error("Second transaction error: ", e)),
