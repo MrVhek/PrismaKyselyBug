@@ -41,20 +41,33 @@ export async function addDragAndDropResult(
 	})
 
     console.log(`Inserting variable values in ${name} transaction`)
-	const variableValues = await tx.$kysely
-		.insertInto("VariableValues")
-		.values([{
-			variableId: questionVariables[0].id,
-			timestamp: timestamp,
-			participantUid: "test",
+    // Dont work
+	// const variableValues = await tx.$kysely
+	// 	.insertInto("VariableValues")
+	// 	.values([{
+	// 		variableId: questionVariables[0].id,
+	// 		timestamp: timestamp,
+	// 		participantUid: "test",
+    //         type: "CATEGORICAL",
+	// 	}])
+	// 	.returning(["VariableValues.uid", "VariableValues.variableId", "VariableValues.timestamp"])
+	// 	.execute()
+
+    // Work
+	const variableValuesQuery = await tx.$kysely
+        .insertInto("VariableValues")
+        .values([{
+            variableId: questionVariables[0].id,
+            timestamp: timestamp,
+            participantUid: "test",
             type: "CATEGORICAL",
-		}])
-		.returning(["VariableValues.uid", "VariableValues.variableId", "VariableValues.timestamp"])
-		.execute()
-	// const variableValues = (await tx.$queryRawUnsafe(
-	// 	variableValuesQuery.sql,
-	// 	...variableValuesQuery.parameters,
-	// )) as {uid: string; variableId: number; timestamp: Date}[]
+        }])
+        .returning(["VariableValues.uid", "VariableValues.variableId", "VariableValues.timestamp"])
+        .compile()
+	const variableValues = (await tx.$queryRawUnsafe(
+		variableValuesQuery.sql,
+		...variableValuesQuery.parameters,
+	)) as {uid: string; variableId: number; timestamp: Date}[]
 
     // Waiting for second transaction to end inserting variable values
     if (name === "first") {
