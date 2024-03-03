@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:docker@localhost:5432/postgres"
+}
+
+generator kysely {
+  provider     = "prisma-kysely"
+  // Optionally provide a destination directory for the generated file
+  // and a filename of your choice
+  output       = "."
+  fileName     = "kyselyTypes.ts"
+  // Optionally generate runtime enums to a separate file
+  enumFileName = "kyselyEnums.ts"
+}
+
+model DragAndDropResults {
+  id         Int @id(map: "draganddropresults_pk") @unique(map: "draganddropresults_id_uindex") @default(autoincrement())
+  variableId Int
+
+  Variables Variables @relation(fields: [variableId], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "DragAndDropResults_Variables_null_fk")
+}
+
+model Variables {
+  id                 Int                  @id(map: "variables_pk") @unique(map: "variables_id_uindex") @default(autoincrement())
+  VariableValues     VariableValues[]
+  DragAndDropResults DragAndDropResults[]
+}
+
+model VariableValues {
+  uid            String   @id @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  variableId     Int
+  timestamp      DateTime
+  type           String
+  participantUid String
+
+  VariableCategoricalValues VariableCategoricalValues[]
+  Variables                 Variables                   @relation(fields: [variableId], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "VariableValues_Variables_null_fk")
+
+  @@unique([variableId, type, timestamp, participantUid])
+  @@unique([uid, type])
+  @@index([type])
+}
+
+model VariableCategoricalValues {
+  variableValueUid String @id @unique @db.Uuid
+  type             String
+  labels           Json?
+  index            Int?
+
+  VariableValues VariableValues @relation(fields: [variableValueUid, type], references: [uid, type], onDelete: Cascade, onUpdate: Restrict, map: "variablecategoricalvalues_variable_value_uid_type_fk")
+}
